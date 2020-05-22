@@ -19,17 +19,56 @@ namespace RSWEB_university_project.Controllers
         {
             _context = context;
         }
+        public async Task<IActionResult> GetCoursesByTeacher(int id)
+        {
+            var teacher = _context.Teacher.Where(m => m.TeacherId == id).FirstOrDefault();
+            ViewData["teacherFullName"] = teacher.FullName;
+            TempData["selectedTeacher"] = id.ToString();
+            var courses = _context.Course.Where(s => s.FirstTeacherId == id || s.SecondTeacherId == id);
+            courses = courses.Include(c => c.FirstTeacher).Include(c => c.SecondTeacher);
+            return View(courses);
+        }
 
         // GET: Courses
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string titleString, string programmeString, int semestarInt = 0)
         {
-            var rSWEB_university_projectContext = _context.Course.Include(c => c.FirstTeacher).Include(c => c.SecondTeacher);
-            return View(await rSWEB_university_projectContext.ToListAsync());
+            TempData["test"] = "TEST";
+            IQueryable<Course> courses = _context.Course.AsQueryable();
+            IQueryable<String> programmes = _context.Course.OrderBy(m => m.Programme)
+                .Select(m => m.Programme).Distinct();
+            IQueryable<int> semesters = _context.Course.OrderBy(m => m.Semestar)
+                .Select(m => m.Semestar).Distinct();
+            if (!string.IsNullOrEmpty(titleString))
+            {
+                courses = courses.Where(s => s.Title.Contains(titleString));
+            }
+            if (!string.IsNullOrEmpty(programmeString))
+            {
+                courses = courses.Where(s => s.Programme == programmeString);
+            }
+            if (semestarInt != 0)
+            {
+                courses = courses.Where(s => s.Semestar == semestarInt);
+            }
+            courses = courses.Include(c => c.FirstTeacher).Include(c => c.SecondTeacher);
+            var coursesFilterVM = new CoursesFilterVM
+            {
+                Courses = await courses.ToListAsync(),
+                Programmes = new SelectList(await programmes.ToListAsync()),
+                Semestars = new SelectList(await semesters.ToListAsync())
+            };
+            return View(coursesFilterVM);
+
+
         }
 
         // GET: Courses/Details/5
         public async Task<IActionResult> Details(int? id)
         {
+            String s = null;
+            if (TempData["test"] != null)
+                s = TempData["test"].ToString();
+            TempData.Keep();
             if (id == null)
             {
                 return NotFound();
@@ -38,6 +77,7 @@ namespace RSWEB_university_project.Controllers
             var course = await _context.Course
                 .Include(c => c.FirstTeacher)
                 .Include(c => c.SecondTeacher)
+                .Include(c => c.Students).ThenInclude(c => c.Student)
                 .FirstOrDefaultAsync(m => m.CourseID == id);
             if (course == null)
             {
@@ -76,27 +116,24 @@ namespace RSWEB_university_project.Controllers
         // GET: Courses/Edit/5
         public async Task<IActionResult> Edit(int? id)
         {
+            String s = null;
+            if (TempData["test"] != null)
+                s = TempData["test"].ToString();
             if (id == null)
             {
                 return NotFound();
             }
+
             var course = _context.Course.Where(m => m.CourseID == id)
                 .Include(m => m.Students).First();
-
-            
             if (course == null)
             {
                 return NotFound();
             }
-             EnrollmentEditVM viewmodel= new EnrollmentEditVM
-            {
-                Course = course,
-                SelectedStudents = course.Students.Select(m => m.StudentID),
-                StudentList = new MultiSelectList(_context.Student, "Id", "FullName")
-            };
-            ViewData["FirstTeacherId"] = new SelectList(_context.Teacher, "TeacherId", "FirstName", course.FirstTeacherId);
-            ViewData["SecondTeacherId"] = new SelectList(_context.Teacher, "TeacherId", "FirstName", course.SecondTeacherId);
-            return View(viewmodel);
+
+            ViewData["FirstTeacherId"] = new SelectList(_context.Teacher, "TeacherId", "FullName", course.FirstTeacherId);
+            ViewData["SecondTeacherId"] = new SelectList(_context.Teacher, "TeacherId", "FullName", course.SecondTeacherId);
+            return View(course);
         }
 
         // POST: Courses/Edit/5
@@ -104,9 +141,12 @@ namespace RSWEB_university_project.Controllers
         // more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, EnrollmentEditVM viewmodel)
+        public async Task<IActionResult> Edit(int id, [Bind("CourseID,Title,Credits,Semestar,Programme,EducationLevel,FirstTeacherId,SecondTeacherId")] Course course)
         {
-            if (id != viewmodel.Course.CourseID)
+            String s = null;
+            if (TempData["test"] != null)
+                s = TempData["test"].ToString();
+            if (id != course.CourseID)
             {
                 return NotFound();
             }
@@ -115,21 +155,12 @@ namespace RSWEB_university_project.Controllers
             {
                 try
                 {
-                    _context.Update(viewmodel.Course);
-                    await _context.SaveChangesAsync();
-
-                    IEnumerable<int> listStudents = viewmodel.SelectedStudents;
-                    IQueryable<Enrollment> toBeRemoved = _context.Enrollment.Where(s => !listStudents.Contains(s.StudentID) && s.CourseID == id);
-                    _context.Enrollment.RemoveRange(toBeRemoved);
-                    IEnumerable<int> existStudents = _context.Enrollment.Where(s => listStudents.Contains(s.StudentID) && s.CourseID == id).Select(s => s.StudentID);
-                    IEnumerable<int> newStudents = listStudents.Where(s => !existStudents.Contains(s));
-                    foreach (int studentId in newStudents)
-                        _context.Enrollment.Add(new Enrollment { StudentID = studentId, CourseID = id });
+                    _context.Update(course);
                     await _context.SaveChangesAsync();
                 }
                 catch (DbUpdateConcurrencyException)
                 {
-                    if (!CourseExists(viewmodel.Course.CourseID))
+                    if (!CourseExists(course.CourseID))
                     {
                         return NotFound();
                     }
@@ -140,9 +171,9 @@ namespace RSWEB_university_project.Controllers
                 }
                 return RedirectToAction(nameof(Index));
             }
-            ViewData["FirstTeacherId"] = new SelectList(_context.Teacher, "TeacherId", "FirstName", viewmodel.Course.FirstTeacherId);
-            ViewData["SecondTeacherId"] = new SelectList(_context.Teacher, "TeacherId", "FirstName", viewmodel.Course.SecondTeacherId);
-            return View(viewmodel);
+            ViewData["FirstTeacherId"] = new SelectList(_context.Teacher, "TeacherId", "FirstName", course.FirstTeacherId);
+            ViewData["SecondTeacherId"] = new SelectList(_context.Teacher, "TeacherId", "FirstName", course.SecondTeacherId);
+            return View(course);
         }
 
         // GET: Courses/Delete/5
@@ -156,6 +187,7 @@ namespace RSWEB_university_project.Controllers
             var course = await _context.Course
                 .Include(c => c.FirstTeacher)
                 .Include(c => c.SecondTeacher)
+                .Include(c => c.Students).ThenInclude(c => c.Student)
                 .FirstOrDefaultAsync(m => m.CourseID == id);
             if (course == null)
             {

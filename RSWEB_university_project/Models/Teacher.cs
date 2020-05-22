@@ -73,5 +73,10 @@ namespace RSWEB_university_project.Models
             get;
             set;
         }
+        [Display(Name = "Image")]
+        public string ImageUrl {
+            get;
+            set;
+        }
     }
 }

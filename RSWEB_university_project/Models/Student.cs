@@ -77,6 +77,9 @@ namespace RSWEB_university_project.Models
             get;
             set;
         }
-
+        public string ImageUrl { 
+            get;
+            set;
+        }
     }
 }

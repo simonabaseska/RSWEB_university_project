@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -13,16 +14,32 @@ namespace RSWEB_university_project.Controllers
     public class StudentsController : Controller
     {
         private readonly RSWEB_university_projectContext _context;
+        private IWebHostEnvironment WebHostEnvironment { get; }
 
-        public StudentsController(RSWEB_university_projectContext context)
+        public StudentsController(RSWEB_university_projectContext context, IWebHostEnvironment webHostEnvironment)
         {
             _context = context;
+            WebHostEnvironment = webHostEnvironment;
         }
 
         // GET: Students
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string studentIdString, string firstNameString, string lastNameString)
         {
-            return View(await _context.Student.ToListAsync());
+            ViewData["CurrentSI"] = studentIdString;
+            ViewData["CurrentFN"] = firstNameString;
+            ViewData["CurrentLN"] = lastNameString;
+            var students = _context.Student.AsQueryable();
+            //var students = _context.Student.Include(m => m.Courses)
+            // .ThenInclude(m => m.Course).AsNoTracking();
+            if (!string.IsNullOrEmpty(studentIdString))
+                students = students.Where(m => m.StudentID == studentIdString);
+            if (!string.IsNullOrEmpty(firstNameString))
+                students = students.Where(m => m.FirstName == firstNameString);
+            if (!string.IsNullOrEmpty(lastNameString))
+                students = students.Where(m => m.LastName == lastNameString);
+
+            students = students.Include(m => m.Courses).ThenInclude(m => m.Course);
+            return View(await students.ToListAsync());
         }
 
         // GET: Students/Details/5
@@ -34,6 +51,7 @@ namespace RSWEB_university_project.Controllers
             }
 
             var student = await _context.Student
+                .Include(m => m.Courses).ThenInclude(m => m.Course)
                 .FirstOrDefaultAsync(m => m.ID == id);
             if (student == null)
             {
@@ -125,6 +143,7 @@ namespace RSWEB_university_project.Controllers
             }
 
             var student = await _context.Student
+                .Include(m => m.Courses).ThenInclude(m => m.Course)
                 .FirstOrDefaultAsync(m => m.ID == id);
             if (student == null)
             {

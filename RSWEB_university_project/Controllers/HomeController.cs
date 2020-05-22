@@ -21,15 +21,7 @@ namespace RSWEB_university_project.Controllers
         }
 
         public IActionResult Index()
-        {
-            //_dbContext.Teacher.Add(new Teacher { });
-            //_dbContext.SaveChanges();
-
-            //var foundt = _dbContext.Teacher.Where(x => x.HireDate > DateTime.UtcNow.AddYears(-1)).ToList();
-
-
-
-            //_dbContext.RemoveRange(foundt);
+        { 
 
             return View();
         }

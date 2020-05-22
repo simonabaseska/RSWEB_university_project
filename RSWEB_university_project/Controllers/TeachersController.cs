@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -13,16 +15,46 @@ namespace RSWEB_university_project.Controllers
     public class TeachersController : Controller
     {
         private readonly RSWEB_university_projectContext _context;
+        private IWebHostEnvironment WebHostEnvironment { get; }
 
-        public TeachersController(RSWEB_university_projectContext context)
+        public TeachersController(RSWEB_university_projectContext context, IWebHostEnvironment webHostEnvironment)
         {
             _context = context;
+            WebHostEnvironment = webHostEnvironment;
         }
 
         // GET: Teachers
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string firstNameString, string lastNameString,
+           string degreeString, string academicRankString)
         {
-            return View(await _context.Teacher.ToListAsync());
+            IQueryable<Teacher> teachers = _context.Teacher.AsQueryable();
+            IQueryable<String> degrees = _context.Teacher.OrderBy(m => m.Degree).Select(m => m.Degree).Distinct();
+            IQueryable<String> academicRanks = _context.Teacher.OrderBy(m => m.AcademicRank).Select(m => m.AcademicRank).Distinct();
+
+            if (!string.IsNullOrEmpty(firstNameString))
+            {
+                teachers = teachers.Where(t => t.FirstName == firstNameString);
+            }
+            if (!string.IsNullOrEmpty(lastNameString))
+            {
+                teachers = teachers.Where(t => t.LastName == lastNameString);
+            }
+            if (!string.IsNullOrEmpty(degreeString))
+            {
+                teachers = teachers.Where(t => t.Degree == degreeString);
+            }
+            if (!string.IsNullOrEmpty(academicRankString))
+            {
+                teachers = teachers.Where(t => t.AcademicRank == academicRankString);
+            }
+            var teachersFilterVM = new TeachersFilterVM
+            {
+                Teachers = await teachers.ToListAsync(),
+                Degrees = new SelectList(await degrees.ToListAsync()),
+                AcademicRanks = new SelectList(await academicRanks.ToListAsync())
+            };
+
+            return View(teachersFilterVM);
         }
 
         // GET: Teachers/Details/5
@@ -34,6 +66,7 @@ namespace RSWEB_university_project.Controllers
             }
 
             var teacher = await _context.Teacher
+                .Include(p => p.Teacher1).Include(p => p.Teacher2)
                 .FirstOrDefaultAsync(m => m.TeacherId == id);
             if (teacher == null)
             {
@@ -80,6 +113,41 @@ namespace RSWEB_university_project.Controllers
             }
             return View(teacher);
         }
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(int id, IFormFile imgUrl, [Bind("TeacherId,FirstName,LastName,Degree,AcademicRank,OfficeNumber,HireDate")] Teacher teacher)
+        {
+            if (id != teacher.TeacherId)
+            {
+                return NotFound();
+            }
+
+            UploadImage uploadImage = new UploadImage(WebHostEnvironment);
+            teacher.ImageUrl = uploadImage.UploadedFile(imgUrl);
+
+            if (ModelState.IsValid)
+            {
+                try
+                {
+                    _context.Update(teacher);
+                    await _context.SaveChangesAsync();
+                }
+                catch (DbUpdateConcurrencyException)
+                {
+                    if (!TeacherExists(teacher.TeacherId))
+                    {
+                        return NotFound();
+                    }
+                    else
+                    {
+                        throw;
+                    }
+                }
+                return RedirectToAction(nameof(Index));
+            }
+            return View(teacher);
+        }
+
 
         // POST: Teachers/Edit/5
         // To protect from overposting attacks, enable the specific properties you want to bind to, for 
