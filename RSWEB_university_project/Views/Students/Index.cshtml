@@ -1,14 +1,22 @@
 ﻿@model IEnumerable<RSWEB_university_project.Models.Student>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Students";
 }
 
-<h1>Index</h1>
+<h1>Students</h1>
 
 <p>
     <a asp-action="Create">Create New</a>
 </p>
+<form asp-controller="Students" asp-action="Index">
+    <p>
+        Student ID: <input type="text" name="StudentIdString" value="@ViewData["CurrentSI"]" />
+        First Name: <input type="text" name="FirstNameString" value="@ViewData["CurrentFN"]" />
+        Last Name: <input type="text" name="LastNameString" value="@ViewData["CurrentLN"]" />
+        <input type="submit" value="Filter" />
+    </p>
+</form>
 <table class="table">
     <thead>
         <tr>

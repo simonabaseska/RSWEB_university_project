@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
 using RSWEB_university_project.Data;
 using RSWEB_university_project.Models;
+using RSWEB_university_project.ViewModels;
 
 namespace RSWEB_university_project.Controllers
 {

@@ -1,14 +1,29 @@
 ﻿@model IEnumerable<RSWEB_university_project.Models.Teacher>
 
 @{
-    ViewData["Title"] = "Index";
+    ViewData["Title"] = "Teachers";
 }
 
-<h1>Index</h1>
+<h1>Teachers</h1>
 
 <p>
     <a asp-action="Create">Create New</a>
 </p>
+<form asp-controller="Teachers" asp-action="Index" method="get">
+    <p>
+        Degree: <select asp-for="DegreeString" asp-items="Model.Degrees">
+            <option value="">All</option>
+        </select>
+        Academic Rank: <select asp-for="AcademicRankString" asp-items="Model.AcademicRanks">
+            <option value="">All</option>
+        </select>
+    </p>
+    <p>
+        First Name: <input type="text" asp-for="FirstNameString" />
+        Last Name: <input type="text" asp-for="LastNameString" />
+        <input type="submit" value="Filter" />
+    </p>
+</form>
 <table class="table">
     <thead>
         <tr>
